@@ -1,12 +1,12 @@
 
+# Spring中cache处理
 
-# spring中cache处理
+本文以cache在springboot应用使用示例。
 
-以springboot应用示例。
-
+备注：本文中所有源码基于spring 5.1.2 版本
 ## Cache使用方式
 
-一般在spring中，可以使用以下几个注解。
+一般在spring框架中，可以使用以下几个注解。
 ```
 @Cacheable: Triggers cache population.
 @CacheEvict: Triggers cache eviction.
