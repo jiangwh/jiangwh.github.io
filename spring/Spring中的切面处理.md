@@ -41,7 +41,6 @@ Spring 采用动态代理的方式来实现面向切面的编程。
 			@Override
 			public Object intercept(Object o, Method method, Object[] objects, MethodProxy methodProxy)
 					throws Throwable {
-				System.out.println("==================");
 				return methodProxy.invokeSuper(o, objects);
 			}
 		});
