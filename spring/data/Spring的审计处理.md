@@ -37,7 +37,6 @@ SpringBoot启动类上面增加
 
 2、spring代理
 
-3、
 
 ```java
 /*
@@ -97,6 +96,14 @@ public class MappingAuditableBeanWrapperFactory extends DefaultAuditableBeanWrap
       //设置最后修改时间
 			return setDateProperty(metadata.lastModifiedDatePaths, value);
 		}
+```
+
+
+
+```
+作者：仁蕴。
+邮箱：jiang_wh@126.com 
+github：https://github.com/jiangwh/blog
 ```
 
 
