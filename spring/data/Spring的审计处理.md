@@ -33,9 +33,11 @@ SpringBoot启动类上面增加
 
 ## 相关过程分析
 
-1、使用
+1、使用spring data 审计方法，需要使用save对象的方法。无法直接使用@Query("语句")。
 
-2、spring代理
+2、spring代理save的方法，并发触发事件，BeforeConvertEvent事件。
+
+3、会对save的对象转换处理。
 
 
 ```java
