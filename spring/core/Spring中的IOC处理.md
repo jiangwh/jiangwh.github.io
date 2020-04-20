@@ -225,6 +225,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				checkMergedBeanDefinition(mbd, beanName, args);
 
 				// Guarantee initialization of beans that the current bean depends on.
+        //检查Bean依赖。
 				String[] dependsOn = mbd.getDependsOn();
 				if (dependsOn != null) {
 					for (String dep : dependsOn) {
@@ -325,6 +326,74 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		return (T) bean;
 	}
 ```
+
+### 创建bean的逻辑
+
+```java
+/*
+public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFactory
+		implements AutowireCapableBeanFactory {
+*/
+@Override
+	protected Object createBean(String beanName, RootBeanDefinition mbd, @Nullable Object[] args)
+			throws BeanCreationException {
+
+		if (logger.isTraceEnabled()) {
+			logger.trace("Creating instance of bean '" + beanName + "'");
+		}
+		RootBeanDefinition mbdToUse = mbd;
+
+		// Make sure bean class is actually resolved at this point, and
+		// clone the bean definition in case of a dynamically resolved Class
+		// which cannot be stored in the shared merged bean definition.
+		Class<?> resolvedClass = resolveBeanClass(mbd, beanName);
+		if (resolvedClass != null && !mbd.hasBeanClass() && mbd.getBeanClassName() != null) {
+			mbdToUse = new RootBeanDefinition(mbd);
+			mbdToUse.setBeanClass(resolvedClass);
+		}
+
+		// Prepare method overrides.
+		try {
+			mbdToUse.prepareMethodOverrides();
+		}
+		catch (BeanDefinitionValidationException ex) {
+			throw new BeanDefinitionStoreException(mbdToUse.getResourceDescription(),
+					beanName, "Validation of method overrides failed", ex);
+		}
+
+		try {
+			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
+			Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
+			if (bean != null) {
+				return bean;
+			}
+		}
+		catch (Throwable ex) {
+			throw new BeanCreationException(mbdToUse.getResourceDescription(), beanName,
+					"BeanPostProcessor before instantiation of bean failed", ex);
+		}
+
+		try {
+			Object beanInstance = doCreateBean(beanName, mbdToUse, args);
+			if (logger.isTraceEnabled()) {
+				logger.trace("Finished creating instance of bean '" + beanName + "'");
+			}
+			return beanInstance;
+		}
+		catch (BeanCreationException | ImplicitlyAppearedSingletonException ex) {
+			// A previously detected exception with proper bean creation context already,
+			// or illegal singleton state to be communicated up to DefaultSingletonBeanRegistry.
+			throw ex;
+		}
+		catch (Throwable ex) {
+			throw new BeanCreationException(
+					mbdToUse.getResourceDescription(), beanName, "Unexpected exception during bean creation", ex);
+		}
+	}
+
+```
+
+
 
 
 
