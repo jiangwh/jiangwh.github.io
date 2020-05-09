@@ -93,6 +93,7 @@ public ConfigurableApplicationContext run(String... args) {
 				initMessageSource();
 
 				// Initialize event multicaster for this context.
+        //注册事件广播
 				initApplicationEventMulticaster();
 
 				// Initialize other special beans in specific context subclasses.
@@ -100,13 +101,15 @@ public ConfigurableApplicationContext run(String... args) {
 				onRefresh();
 
 				// Check for listener beans and register them.
+        //注册实现listener接口的bean
 				registerListeners();
 
 				// Instantiate all remaining (non-lazy-init) singletons.
-        //这一步会真正的初始化bean
+        //这一步会真正的初始化bean，处理@eventlistener
 				finishBeanFactoryInitialization(beanFactory);
 
 				// Last step: publish corresponding event.
+        //发布refreshevent
 				finishRefresh();
 			}
 
