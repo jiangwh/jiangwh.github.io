@@ -1,6 +1,6 @@
 # Spring Mongo乐观锁
 
-Spring-data-mongo中提供了乐观锁的使用方式
+Spring-data-mongo中提供了乐观锁的使用方式，可以使用@Version方式。
 
 ## 简单实例
 
@@ -8,7 +8,7 @@ Spring-data-mongo中提供了乐观锁的使用方式
 @Version
 ```
 
-
+//TODO 
 
 
 
@@ -80,6 +80,23 @@ private <T> T doSaveVersioned(AdaptibleEntity<T> source, String collectionName) 
 		return (T) doInsert(collectionName, source.getBean(), this.mongoConverter);
 	}
 ```
+
+
+
+```java
+		@Override
+		public T incrementVersion() {
+
+			MongoPersistentProperty versionProperty = entity.getRequiredVersionProperty();
+			Number version = getVersion();
+      		//乐观锁中version生成方式，@Version字段最好时long类型，否则需要进行转换。
+			Number nextVersion = version == null ? 0 : version.longValue() + 1;
+			propertyAccessor.setProperty(versionProperty, nextVersion); //会进行过类型转换
+			return propertyAccessor.getBean();
+		}
+```
+
+
 
 
 
