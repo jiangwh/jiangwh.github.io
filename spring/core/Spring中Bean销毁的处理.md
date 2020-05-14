@@ -21,7 +21,55 @@ ps -ef | grep .jar | grep java | awk '{print $2}' | xargs kill
 #java -Xmx64m -Xms64m -XX:+HeapDumpOnOutOfMemoryError -XX:+CrashOnOutOfMemoryError -jar name.jar
 
 ```
+Spring Bean 中的可以定义多个销毁的方法，执行销毁方法的顺序，按照方法在类中的顺序。
+这些销毁方法不能携带任何参数。
+
+
 ## 简单示例
+
+```java
+@Component
+@Getter
+@Slf4j
+public class MessageContainer {
+	private static final int CAP = Integer.MAX_VALUE;
+
+	private LinkedBlockingQueue<WrapperEvent> messageQueue;
+
+	private CopyOnWriteArrayList<WrapperEvent> delayEvent;
+
+	@Autowired
+	QueueModelRepository repository;
+
+	@PostConstruct
+	public void initContainer() {
+    //在容器初始化时，加载数据库持久化消息。
+		log.info("init message container");
+		List<QueueModel> queueModelList = repository.findAll();
+		messageQueue = Queues.newLinkedBlockingQueue(CAP);
+		delayEvent = Lists.newCopyOnWriteArrayList();
+		if (null != queueModelList && queueModelList.size() > 0) {
+			queueModelList.forEach(q -> {
+				messageQueue.addAll(q.getQueue());
+				delayEvent.addAll(q.getEvent());
+			});
+			repository.deleteAll();
+		}
+	}
+
+	@PreDestroy
+	public void destroyContainer() {
+    //容器销毁时持久化未处理的消息。
+		log.info("destroy message container");
+		QueueModel queueModel = QueueModel.builder().queue(messageQueue).event(delayEvent).build();
+		repository.save(queueModel);
+		messageQueue.clear();
+		delayEvent.clear();
+	}
+}
+```
+
+
 
 
 ## Spring触发销毁bean
@@ -62,5 +110,66 @@ Spring 在refreshContext阶段，注册完成bean以及事件，注册一个shud
 			Runtime.getRuntime().addShutdownHook(this.shutdownHook);
 		}
 	}
+```
+
+```java
+		/*共调用的初始化方法 在docreate阶段调用*/
+		public void invokeInitMethods(Object target, String beanName) throws Throwable {
+			Collection<LifecycleElement> checkedInitMethods = this.checkedInitMethods;
+			Collection<LifecycleElement> initMethodsToIterate =
+					(checkedInitMethods != null ? checkedInitMethods : this.initMethods);
+			if (!initMethodsToIterate.isEmpty()) {
+				for (LifecycleElement element : initMethodsToIterate) {
+					if (logger.isTraceEnabled()) {
+						logger.trace("Invoking init method on bean '" + beanName + "': " + element.getMethod());
+					}
+					element.invoke(target);
+				}
+			}
+		}
+
+		public void invokeDestroyMethods(Object target, String beanName) throws Throwable {
+			Collection<LifecycleElement> checkedDestroyMethods = this.checkedDestroyMethods;
+			Collection<LifecycleElement> destroyMethodsToUse =
+					(checkedDestroyMethods != null ? checkedDestroyMethods : this.destroyMethods);
+			if (!destroyMethodsToUse.isEmpty()) {
+				for (LifecycleElement element : destroyMethodsToUse) {
+					if (logger.isTraceEnabled()) {
+						logger.trace("Invoking destroy method on bean '" + beanName + "': " + element.getMethod());
+					}
+					element.invoke(target);
+				}
+			}
+		}
+
+```
+
+执行方法顺序的源码
+```java
+Method[] methods = getDeclaredMethods(clazz);
+for (Method method : methods) {
+			try {
+				mc.doWith(method);
+			}
+			catch (IllegalAccessException ex) {
+				throw new IllegalStateException("Not allowed to access method '" + method.getName() + "': " + ex);
+			}
+		}
+		/**doWith 使用的表达式*/
+		method -> {
+				if (this.initAnnotationType != null && method.isAnnotationPresent(this.initAnnotationType)) {
+					LifecycleElement element = new LifecycleElement(method);
+					currInitMethods.add(element);
+					if (logger.isTraceEnabled()) {
+						logger.trace("Found init method on class [" + clazz.getName() + "]: " + method);
+					}
+				}
+				if (this.destroyAnnotationType != null && method.isAnnotationPresent(this.destroyAnnotationType)) {
+					currDestroyMethods.add(new LifecycleElement(method));
+					if (logger.isTraceEnabled()) {
+						logger.trace("Found destroy method on class [" + clazz.getName() + "]: " + method);
+					}
+				}
+			}
 ```
 

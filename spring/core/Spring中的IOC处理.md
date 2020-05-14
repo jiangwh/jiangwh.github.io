@@ -84,6 +84,7 @@ public ConfigurableApplicationContext run(String... args) {
 				postProcessBeanFactory(beanFactory);
 
 				// Invoke factory processors registered as beans in the context.
+        //定义bean factory中各种bean处理器
 				invokeBeanFactoryPostProcessors(beanFactory);
 
 				// Register bean processors that intercept bean creation.
