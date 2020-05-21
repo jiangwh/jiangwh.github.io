@@ -78,7 +78,7 @@ bean
 
 ### @NonNull
 
-
+lombok的@Builder注解支持，判断增加了@NonNull注解的字段不能为null。可能为lombok的bug??
 
 ### @NonNullApi
 
