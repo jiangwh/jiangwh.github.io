@@ -261,23 +261,121 @@ THROW_INVOKING_METHOD = methodOnInvokeThrowTracing
 
     }
 ```
+### ASM
+对于ASM还处于初期阶段，下面给一些ASM的代码片段，方便理解ASM、阅读arthas中相关源码。
 
-```bash
-ASM访问顺序，修改相关advice的访问
-visitAnnotationDefault?
-( visitAnnotation | visitParameterAnnotation | visitAttribute )*
-( visitCode
-( visitTryCatchBlock | visitLabel | visitFrame | visitXxxInsn |
-visitLocalVariable | visitLineNumber )*
-visitMaxs )?
-visitEnd
+#### 增加方法的示例
+
+##### 源码
+
+```java
+	public void printHello(){
+		System.out.println(this);
+	}
+```
+
+##### 字节码
+
+```java
+public void printHello();
+    Code:
+       0: getstatic     #2                  // Field java/lang/System.out:Ljava/io/PrintStream;
+       3: aload_0
+       4: invokevirtual #3                  // Method java/io/PrintStream.println:(Ljava/lang/Object;)V
+       7: return
+```
+
+##### ASM生成字节码代码
+
+```java
+ClassWriter cw = new ClassWriter(0);
+//访问com包下的Test类，
+cw.visit(V1_5, ACC_PUBLIC, "com/Test", null, "java/lang/Object", null);
+//增加 public 无返回、无入参 的 printHello
+MethodVisitor mv = cw.visitMethod(ACC_PUBLIC , "printHello", "()V", "null", null);
+//方法开始
+mv.visitCode();
+//获取静态变量 System.out 字段类型为 对象引用 PrintStream
+mv.visitFieldInsn(GETSTATIC,"java/lang/System","out","Ljava/io/PrintStream;");
+//加载this
+mv.visitVarInsn(ALOAD,0);
+//mv.visitLdcInsn("Hello"); //加载常量
+//调用方法 println
+mv.visitMethodInsn(INVOKEVIRTUAL,"java/io/PrintStream","println","(Ljava/lang/Object;)V",false);
+//return
+mv.visitInsn(RETURN);
+//mv.visitMaxs(1, 1);
+mv.visitEnd();
+cw.visitEnd();
+ClassReader cr = new ClassReader(klassBuffer);
+cr.accept(cw, EXPAND_FRAMES);
+//字节码写入文件
+writeClass(cw.toByteArray(), "v.class");
+```
+
+#### 修改方法示例 
+
+```java
+ClassWriter cw = new ClassWriter(0);
+ClassVisitor visitor = new ChangeClassAdapter(0, cw);
+ClassReader cr = new ClassReader(klassBuffer);
+cr.accept(visitor, EXPAND_FRAMES);
+writeClass(cw.toByteArray(), "v.class");
 ```
 
 
 
+```java
+class ChangeClassAdapter extends ClassVisitor {
+		public ChangeClassAdapter(int api, ClassVisitor cv) {
+			super(ASM4, cv);
+		}
+
+		@Override public void visit(int version, int access, String name, String signature, String superName,
+				String[] interfaces) {
+			cv.visit(V1_5, access, name, signature, superName, interfaces); //修改java version
+			//super.visit(version, access, name, signature, superName, interfaces);
+		}
+
+		@Override public MethodVisitor visitMethod(int access, String name, String desc, String signature,
+				String[] exceptions) {
+			MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
+      //通过AdviceAdapter修改方法
+			return new AdviceAdapter(Opcodes.ASM5, new JSRInlinerAdapter(mv, access, name, desc, signature, exceptions),
+					access, name, desc) {
+				@Override public void visitCode() {
+					super.visitCode();
+				}
+
+				@Override public void visitMethodInsn(int i, String s, String s1, String s2, boolean b) {
+          //此处也可以针对方法进行修改
+					super.visitMethodInsn(i, s, s1, s2, b);
+				}
+
+				@Override protected void onMethodEnter() {
+          //修改方法进入
+					mv.visitMethodInsn(INVOKESTATIC, "java/lang/System", "currentTimeMillis", "()J");
+					super.onMethodEnter();
+				}
+
+				@Override protected void onMethodExit(int i) {
+          //修改方法退出
+					mv.visitMethodInsn(INVOKESTATIC, "java/lang/System", "currentTimeMillis", "()J");
+					super.onMethodExit(i);
+				}
+			};
+		}
+
+		@Override public void visitEnd() {
+			super.visitEnd();
+		}
+	}
+```
 
 
 ## 总结
 
+1、源码中trace命令使用自实现的lock。
 
+2、trace命令使用编织字节码。
 
