@@ -16,3 +16,17 @@ broken也支持集群部署的，通过master、slave的方式集群。broken的
 
 rocketmq底层消息通过netty进行进行通信。
 
+## namesvr集群
+
+namesvr是一个简单的服务注册的服务。
+
+
+
+## broken集群
+
+broken 可以支持多个master模式、2-master 2-salve模式……
+
+broken的角色切换主要是依赖DLedgerServer角色切换，触发broken中角色切换(在4.5.1版本之后存在该功能，之前的功能没有角色切换)。
+
+
+

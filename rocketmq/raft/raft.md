@@ -4,6 +4,8 @@ raft是一个易懂的一致性算法。
 
 算法介绍：https://raft.github.io/
 
+parer: https://raft.github.io/raft.pdf
+
 rocketmq使用raft协议处理broken集群消息备份的一致性问题。
 
 ## 一些简单概念
@@ -25,6 +27,8 @@ raft协议中一些概念：
 
 
 ## 在rocketmq raft协议处理
+
+在节点启动时，所有节点的角色都是follower。raft利用每个节点的随机等待时间，尽量让在没有leader节点的情况，一个follower转为candidate并拉取选票。
 
 ### 领导者
 
@@ -216,5 +220,35 @@ private void maintainAsCandidate() throws Exception {
     }
 ```
 
+## 消息同步
 
+在raft协议中只有领导者才进行消息的发布，因此只能在leader节点进行写操作。
+
+leader节点日志必须是有序的，如果flower节点的序列小雨
+
+```
+@Override
+public void doWork() {
+    try {
+        if (!checkAndFreshState()) {
+            waitForRunning(1);
+            return;
+        }
+
+        if (type.get() == PushEntryRequest.Type.APPEND) {
+            if (dLedgerConfig.isEnableBatchPush()) {
+                doBatchAppend();
+            } else {
+                doAppend();
+            }
+        } else {
+            doCompare();
+        }
+        waitForRunning(1);
+    } catch (Throwable t) {
+        DLedgerEntryPusher.logger.error("[Push-{}]Error in {} writeIndex={} compareIndex={}", peerId, getName(), writeIndex, compareIndex, t);
+        DLedgerUtils.sleep(500);
+    }
+}
+```
 
