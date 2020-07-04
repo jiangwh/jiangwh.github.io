@@ -7,8 +7,32 @@
 @Async
 ```
 
+### 设置异步的线程数
+```java
+@Configuration
+@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+public class ExecutorConfig implements AsyncConfigurer {
+
+	@Override
+	public Executor getAsyncExecutor() {
+		ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+		taskExecutor.setCorePoolSize(10);
+		taskExecutor.setMaxPoolSize(30);
+		taskExecutor.setQueueCapacity(2000);
+		taskExecutor.initialize();
+		taskExecutor.setThreadNamePrefix("async-service-");
+		taskExecutor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+		return taskExecutor;
+	}
+}
+```
+
+如果异步线程需要控制到方法层面，那注册多个Executor的bean，通过bean的名字映射。
+
+
 
 ## 异步方法的执行
+
 ```java
 /*
 public class AsyncExecutionInterceptor extends AsyncExecutionAspectSupport implements MethodInterceptor, Ordered {
