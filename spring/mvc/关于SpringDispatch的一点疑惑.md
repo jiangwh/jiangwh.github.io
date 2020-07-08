@@ -229,3 +229,9 @@ protected Object doInvoke(Object... args) throws Exception {
 	}
 ```
 
+## 小结
+
+通过上面三处的代码解释，我们可以理解controller中的方法执行的流程是如何处理，以及如何在对应方法上注入一些参数如：
+```java
+javax.servlet.http.HttpServletRequest request 
+```
