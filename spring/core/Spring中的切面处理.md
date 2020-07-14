@@ -8,6 +8,25 @@ Spring中切面两种代理方式：
 
 Spring 采用动态代理的方式来实现面向切面的编程。
 
+
+
+多个切面代理时，加载顺序与bean的加载顺序相关。
+
+上面这句话的含义是：
+
+1、我们一般使用```@Aspect```标识这是一个切面类。
+2、使用```@Pointcut```定义切点信息
+3、我们在切面的方法可以使用:
+```java
+@Before //在切点前
+@Around //环绕切点
+@After //在切点结尾
+@AfterReturning //切入点return内容之后
+@AfterThrowing  //切入内容部分抛出异常之后
+```
+![image-20200524123102252](../../pic/image-20200524123102252.png)
+其中两个切面类的顺序与bean加载的顺序相关。
+
 ## 相关基础信息
 
 ### 动态代理：
@@ -98,11 +117,11 @@ public class LoggerService {
 			return bean;
 		}
 
-		if (bean instanceof Advised) {
+		if (bean instanceof Advised) { //该bean是一个切面bean
 			Advised advised = (Advised) bean;
 			if (!advised.isFrozen() && isEligible(AopUtils.getTargetClass(bean))) {
 				// Add our local Advisor to the existing proxy's Advisor chain...
-				if (this.beforeExistingAdvisors) {
+				if (this.beforeExistingAdvisors) { 
 					advised.addAdvisor(0, this.advisor);
 				}
 				else {
@@ -139,7 +158,80 @@ ProxyFactory创建具体的代理。
 
 ### 初始化拦截方法配置
 
-//TODO
+```java
+/**package org.springframework.aop.aspectj.annotation.BeanFactoryAspectJAdvisorsBuilder*/
+public List<Advisor> buildAspectJAdvisors(){
+		List<String> aspectNames = this.aspectBeanNames;
+
+		if (aspectNames == null) {
+			synchronized (this) {
+				aspectNames = this.aspectBeanNames;
+				if (aspectNames == null) {
+					List<Advisor> advisors = new ArrayList<>();
+					aspectNames = new ArrayList<>();
+					String[] beanNames = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(
+							this.beanFactory, Object.class, true, false);
+					for (String beanName : beanNames) { //beanNames为一个bean名字的数组，与bean的初始化关系相关。
+						if (!isEligibleBean(beanName)) {
+							continue;
+						}
+						// We must be careful not to instantiate beans eagerly as in this case they
+						// would be cached by the Spring container but would not have been weaved.
+						Class<?> beanType = this.beanFactory.getType(beanName);
+						if (beanType == null) {
+							continue;
+						}
+						if (this.advisorFactory.isAspect(beanType)) {//判断是否为@Aspect注解的bean
+							aspectNames.add(beanName);
+							AspectMetadata amd = new AspectMetadata(beanType, beanName);
+							if (amd.getAjType().getPerClause().getKind() == PerClauseKind.SINGLETON) {
+								MetadataAwareAspectInstanceFactory factory =
+										new BeanFactoryAspectInstanceFactory(this.beanFactory, beanName);
+								List<Advisor> classAdvisors = this.advisorFactory.getAdvisors(factory);
+								if (this.beanFactory.isSingleton(beanName)) {
+									this.advisorsCache.put(beanName, classAdvisors);
+								}
+								else {
+									this.aspectFactoryCache.put(beanName, factory);
+								}
+								advisors.addAll(classAdvisors);
+							}
+							else {
+								// Per target or per this.
+								if (this.beanFactory.isSingleton(beanName)) {
+									throw new IllegalArgumentException("Bean with name '" + beanName +
+											"' is a singleton, but aspect instantiation model is not singleton");
+								}
+								MetadataAwareAspectInstanceFactory factory =
+										new PrototypeAspectInstanceFactory(this.beanFactory, beanName);
+								this.aspectFactoryCache.put(beanName, factory);
+								advisors.addAll(this.advisorFactory.getAdvisors(factory));
+							}
+						}
+					}
+					this.aspectBeanNames = aspectNames;
+					return advisors;
+				}
+			}
+		}
+
+		if (aspectNames.isEmpty()) {
+			return Collections.emptyList();
+		}
+		List<Advisor> advisors = new ArrayList<>();
+		for (String aspectName : aspectNames) {
+			List<Advisor> cachedAdvisors = this.advisorsCache.get(aspectName);
+			if (cachedAdvisors != null) {
+				advisors.addAll(cachedAdvisors);
+			}
+			else {
+				MetadataAwareAspectInstanceFactory factory = this.aspectFactoryCache.get(aspectName);
+				advisors.addAll(this.advisorFactory.getAdvisors(factory));
+			}
+		}
+		return advisors;
+	}
+```
 
 
 
@@ -162,7 +254,7 @@ public List<Object> getInterceptorsAndDynamicInterceptionAdvice(
 		Class<?> actualClass = (targetClass != null ? targetClass : method.getDeclaringClass());
 		Boolean hasIntroductions = null;
 
-		for (Advisor advisor : advisors) {
+		for (Advisor advisor : advisors) { //按照advisor添加的顺序处理切面
 			if (advisor instanceof PointcutAdvisor) {
 				// Add it conditionally.
 				PointcutAdvisor pointcutAdvisor = (PointcutAdvisor) advisor;
