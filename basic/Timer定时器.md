@@ -112,4 +112,4 @@ private void mainLoop() {
 
 1、timer是jdk自带的定时调度类，一个timer对象可以同时调度多个任务。
 
-2、timer调度的任务使用了一个线程共享，只要其中一个任务出现异常（非InterruptedException异常），会导致其他任务终端。
+2、timer调度的任务使用了一个线程共享，只要其中一个任务出现异常（非InterruptedException异常），会导致其他任务终止。
