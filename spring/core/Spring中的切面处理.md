@@ -1,6 +1,6 @@
 # Spring中的AOP处理
 
-Spring中切面两种代理方式：
+Spring中切面两种代理方式(aspect编译器处理的，本文不涉及)：
 
 1、JdkDynamicAopProxy
 
