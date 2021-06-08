@@ -4,7 +4,26 @@
 
 ### Namespace
 
+```
+setns() 函数
+通过 setns() 函数可以将当前进程加入到已有的 namespace 中。setns() 在 C 语言库中的声明如下： 
+#define _GNU_SOURCE
+#include <sched.h>
+int setns(int fd, int nstype);
+和 clone() 函数一样，C 语言库中的 setns() 函数也是对 setns() 系统调用的封装：
 
+fd：表示要加入 namespace 的文件描述符。它是一个指向 /proc/[pid]/ns 目录中文件的文件描述符，可以通过直接打开该目录下的链接文件或者打开一个挂载了该目录下链接文件的文件得到。
+nstype：参数 nstype 让调用者可以检查 fd 指向的 namespace 类型是否符合实际要求。若把该参数设置为 0 表示不检查。
+前面我们提到：可以通过挂载的方式把 namespace 保留下来。保留 namespace 的目的是为以后把进程加入这个 namespace 做准备。在 docker 中，使用 docker exec 命令在已经运行着的容器中执行新的命令就需要用到 setns() 函数。为了把新加入的 namespace 利用起来，还需要引入 execve() 系列的函数(笔者在 《Linux 创建子进程执行任务》一文中介绍过 execve() 系列的函数，有兴趣的同学可以前往了解)，该函数可以执行用户的命令，比较常见的用法是调用 /bin/bash 并接受参数运行起一个 shell。
+
+unshare() 函数 和 unshare 命令
+通过 unshare 函数可以在原进程上进行 namespace 隔离。也就是创建并加入新的 namespace 。unshare() 在 C 语言库中的声明如下：
+
+#define _GNU_SOURCE
+#include <sched.h>
+
+
+```
 
 ### Cgroup
 
