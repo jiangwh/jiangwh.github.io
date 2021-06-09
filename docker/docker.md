@@ -14,7 +14,7 @@ int setns(int fd, int nstype);
 
 fd：表示要加入 namespace 的文件描述符。它是一个指向 /proc/[pid]/ns 目录中文件的文件描述符，可以通过直接打开该目录下的链接文件或者打开一个挂载了该目录下链接文件的文件得到。
 nstype：参数 nstype 让调用者可以检查 fd 指向的 namespace 类型是否符合实际要求。若把该参数设置为 0 表示不检查。
-前面我们提到：可以通过挂载的方式把 namespace 保留下来。保留 namespace 的目的是为以后把进程加入这个 namespace 做准备。在 docker 中，使用 docker exec 命令在已经运行着的容器中执行新的命令就需要用到 setns() 函数。为了把新加入的 namespace 利用起来，还需要引入 execve() 系列的函数(笔者在 《Linux 创建子进程执行任务》一文中介绍过 execve() 系列的函数，有兴趣的同学可以前往了解)，该函数可以执行用户的命令，比较常见的用法是调用 /bin/bash 并接受参数运行起一个 shell。
+前面我们提到：可以通过挂载的方式把 namespace 保留下来。保留 namespace 的目的是为以后把进程加入这个 namespace 做准备。
 
 unshare() 函数 和 unshare 命令
 通过 unshare 函数可以在原进程上进行 namespace 隔离。也就是创建并加入新的 namespace 。unshare() 在 C 语言库中的声明如下：
@@ -22,16 +22,112 @@ unshare() 函数 和 unshare 命令
 #define _GNU_SOURCE
 #include <sched.h>
 
-
 ```
 
 ### Cgroup
 
+cgroup子系统查看
 
+```bash
+jiangwh@ubuntu:~$ lssubsys -a
+cpuset
+cpu,cpuacct
+blkio
+memory
+devices
+freezer
+net_cls,net_prio
+perf_event
+hugetlb
+pids
+rdma
+```
+
+
+
+```
+cpu      子系统，主要限制进程的 cpu 使用率。
+cpuacct  子系统，可以统计 cgroups 中的进程的 cpu 使用报告。
+cpuset   子系统，可以为 cgroups 中的进程分配单独的 cpu 节点或者内存节点。
+memory   子系统，可以限制进程的 memory 使用量。
+blkio    子系统，可以限制进程的块设备 io。
+devices  子系统，可以控制进程能够访问某些设备。
+net_cls  子系统，可以标记 cgroups 中进程的网络数据包，然后可以使用 tc 模块（traffic control）对数据包进行控制。
+net_prio 子系统,用来设计网络流量的优先级
+freezer  子系统，可以挂起或者恢复 cgroups 中的进程。
+ns       子系统，可以使不同 cgroups 下面的进程使用不同的 namespace
+hugetlb  子系统.主要针对于HugeTLB系统进行限制，这是一个大页文件系统。
+```
+
+查看cgroup的挂载点
+
+```bash
+jiangwh@ubuntu:/sys/fs/cgroup/cpu/gocker/5b39264034e6$ mount -t cgroup
+cgroup on /sys/fs/cgroup/systemd type cgroup (rw,nosuid,nodev,noexec,relatime,xattr,name=systemd)
+cgroup on /sys/fs/cgroup/pids type cgroup (rw,nosuid,nodev,noexec,relatime,pids)
+cgroup on /sys/fs/cgroup/cpuset type cgroup (rw,nosuid,nodev,noexec,relatime,cpuset)
+cgroup on /sys/fs/cgroup/net_cls,net_prio type cgroup (rw,nosuid,nodev,noexec,relatime,net_cls,net_prio)
+cgroup on /sys/fs/cgroup/memory type cgroup (rw,nosuid,nodev,noexec,relatime,memory)
+cgroup on /sys/fs/cgroup/cpu,cpuacct type cgroup (rw,nosuid,nodev,noexec,relatime,cpu,cpuacct)
+cgroup on /sys/fs/cgroup/rdma type cgroup (rw,nosuid,nodev,noexec,relatime,rdma)
+cgroup on /sys/fs/cgroup/blkio type cgroup (rw,nosuid,nodev,noexec,relatime,blkio)
+cgroup on /sys/fs/cgroup/perf_event type cgroup (rw,nosuid,nodev,noexec,relatime,perf_event)
+cgroup on /sys/fs/cgroup/freezer type cgroup (rw,nosuid,nodev,noexec,relatime,freezer)
+cgroup on /sys/fs/cgroup/devices type cgroup (rw,nosuid,nodev,noexec,relatime,devices)
+cgroup on /sys/fs/cgroup/hugetlb type cgroup (rw,nosuid,nodev,noexec,relatime,hugetlb)
+```
+
+查看cgroup组,以下展示了test组，所有tasks中pid都收到该组的限制。
+
+```bash
+jiangwh@ubuntu:/sys/fs/cgroup/cpu/test$ ls -al
+total 0
+drwxr-xr-x 3 root root 0 Jun  5 13:18 .
+dr-xr-xr-x 6 root root 0 Jun  5 13:17 ..
+drwxr-xr-x 2 root root 0 Jun  5 13:26 5b39264034e6
+-rw-r--r-- 1 root root 0 Jun  5 13:26 cgroup.clone_children
+-rw-r--r-- 1 root root 0 Jun  5 13:26 cgroup.procs
+-r--r--r-- 1 root root 0 Jun  5 13:26 cpuacct.stat
+-rw-r--r-- 1 root root 0 Jun  5 13:26 cpuacct.usage
+-r--r--r-- 1 root root 0 Jun  5 13:26 cpuacct.usage_all
+-r--r--r-- 1 root root 0 Jun  5 13:26 cpuacct.usage_percpu
+-r--r--r-- 1 root root 0 Jun  5 13:26 cpuacct.usage_percpu_sys
+-r--r--r-- 1 root root 0 Jun  5 13:26 cpuacct.usage_percpu_user
+-r--r--r-- 1 root root 0 Jun  5 13:26 cpuacct.usage_sys
+-r--r--r-- 1 root root 0 Jun  5 13:26 cpuacct.usage_user
+-rw-r--r-- 1 root root 0 Jun  5 13:26 cpu.cfs_period_us
+-rw-r--r-- 1 root root 0 Jun  5 13:26 cpu.cfs_quota_us
+-rw-r--r-- 1 root root 0 Jun  5 13:26 cpu.shares
+-r--r--r-- 1 root root 0 Jun  5 13:26 cpu.stat
+-rw-r--r-- 1 root root 0 Jun  5 13:26 notify_on_release
+-rw-r--r-- 1 root root 0 Jun  5 13:26 tasks
+```
+
+mount 方式处理cgroup
+
+> kernel是通过一个虚拟树状文件系统来配置Cgroups的。我们首先需要创建并挂载一个hierarchy(cgroup树)。即先mkdir后mount
+
+```bash
+mount -t cgroup -o none,name=cgroup-test cgroup-test cgroup-test/
+```
 
 
 
 ### UnionFS
+
+​		UnionFS是一种为Linux，FreeBSD，NetBSD操作系统设计的文件系统服务，这个文件系统服务的功能是将其他文件系统联合起来，挂载到同一挂载点。它使用branch把不同文件系统目录和文件进行“透明”覆盖，形成一个单一一致的文件系统。这些branches有两种模式：read-only和read-write，虚拟出来的联合文件系统可以对任何文件进行操作，但是实际上原文件并没有被修改。这里涉及到UnionFS的一个重要的资源管理技术：写时复制（copy on write）。
+
+​		overlay文件系统分为lowerdir、upperdir、merged， 对外统一展示为merged，uperdir和lower的同名文件会被upperdir覆盖。具体层次如下
+
+```bash
+mount -t overlay overlay -o lowerdir=/lower,upperdir=/upper,workdir=/work /merged
+//lower dir 可以为多个目录
+mount -t overlay overlay -o lowerdir=/lower1:/lower2:/lower3,upperdir=/upper,workdir=/work /merged
+//不设定upperdir那么merged目录为只读目录
+mount -t overlay overlay -o lowerdir=/lower1:/lower2 /merged
+```
+
+
 
 
 
