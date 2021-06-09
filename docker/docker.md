@@ -16,6 +16,10 @@ fd：表示要加入 namespace 的文件描述符。它是一个指向 /proc/[pi
 nstype：参数 nstype 让调用者可以检查 fd 指向的 namespace 类型是否符合实际要求。若把该参数设置为 0 表示不检查。
 前面我们提到：可以通过挂载的方式把 namespace 保留下来。保留 namespace 的目的是为以后把进程加入这个 namespace 做准备。
 
+
+
+## Cgroup
+
 unshare() 函数 和 unshare 命令
 通过 unshare 函数可以在原进程上进行 namespace 隔离。也就是创建并加入新的 namespace 。unshare() 在 C 语言库中的声明如下：
 
@@ -26,7 +30,7 @@ unshare() 函数 和 unshare 命令
 
 ### Cgroup
 
-cgroup子系统查看
+- cgroup子系统查看
 
 ```bash
 jiangwh@ubuntu:~$ lssubsys -a
@@ -43,7 +47,7 @@ pids
 rdma
 ```
 
-
+- 各个子系统说明
 
 ```
 cpu      子系统，主要限制进程的 cpu 使用率。
@@ -59,7 +63,7 @@ ns       子系统，可以使不同 cgroups 下面的进程使用不同的 name
 hugetlb  子系统.主要针对于HugeTLB系统进行限制，这是一个大页文件系统。
 ```
 
-查看cgroup的挂载点
+- 查看cgroup的挂载点
 
 ```bash
 jiangwh@ubuntu:/sys/fs/cgroup/cpu/gocker/5b39264034e6$ mount -t cgroup
@@ -77,7 +81,7 @@ cgroup on /sys/fs/cgroup/devices type cgroup (rw,nosuid,nodev,noexec,relatime,de
 cgroup on /sys/fs/cgroup/hugetlb type cgroup (rw,nosuid,nodev,noexec,relatime,hugetlb)
 ```
 
-查看cgroup组,以下展示了test组，所有tasks中pid都收到该组的限制。
+- 查看cgroup组,以下展示了test组，所有tasks中pid都收到该组的限制。
 
 ```bash
 jiangwh@ubuntu:/sys/fs/cgroup/cpu/test$ ls -al
@@ -103,7 +107,7 @@ drwxr-xr-x 2 root root 0 Jun  5 13:26 5b39264034e6
 -rw-r--r-- 1 root root 0 Jun  5 13:26 tasks
 ```
 
-mount 方式处理cgroup
+- mount 方式处理cgroup
 
 > kernel是通过一个虚拟树状文件系统来配置Cgroups的。我们首先需要创建并挂载一个hierarchy(cgroup树)。即先mkdir后mount
 
@@ -149,6 +153,7 @@ net bridge
 	netlink.AddrAdd(gBridge, addr)
 	netlink.LinkSetUp(gBridge)
 ```
+
 
 ### 镜像下载
 此处忽略
@@ -293,4 +298,14 @@ links, _ := netlink.LinkList()
 ```
 
 ### 执行传入命令
+
+
+## network namespace
+
+```go
+fd, err := unix.Open("/proc/self/ns/net", unix.O_RDONLY, 0)
+unix.Mount("/proc/self/ns/net", "/var/run/gocker/net-ns/containerId", "bind", unix.MS_BIND, "")
+unix.Setns(fd, unix.CLONE_NEWNET)
+
+```
 
