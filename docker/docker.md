@@ -4,6 +4,8 @@
 
 ### Namespace
 
+隔离资源
+
 ```
 setns() 函数
 通过 setns() 函数可以将当前进程加入到已有的 namespace 中。setns() 在 C 语言库中的声明如下： 
@@ -29,6 +31,11 @@ unshare() 函数 和 unshare 命令
 ```
 
 ### Cgroup
+
+<<<<<<< HEAD
+- cgroup子系统查看
+=======
+限制资源使用
 
 - cgroup子系统查看
 
@@ -109,7 +116,7 @@ drwxr-xr-x 2 root root 0 Jun  5 13:26 5b39264034e6
 
 - mount 方式处理cgroup
 
-> kernel是通过一个虚拟树状文件系统来配置Cgroups的。我们首先需要创建并挂载一个hierarchy(cgroup树)。即先mkdir后mount
+> kernel是通过一个虚拟树状文件系统来配置cgroups的。我们首先需要创建并挂载一个hierarchy(cgroup树)。即先mkdir后mount
 
 ```bash
 mount -t cgroup -o none,name=cgroup-test cgroup-test cgroup-test/
@@ -121,14 +128,45 @@ mount -t cgroup -o none,name=cgroup-test cgroup-test cgroup-test/
 
 ​		UnionFS是一种为Linux，FreeBSD，NetBSD操作系统设计的文件系统服务，这个文件系统服务的功能是将其他文件系统联合起来，挂载到同一挂载点。它使用branch把不同文件系统目录和文件进行“透明”覆盖，形成一个单一一致的文件系统。这些branches有两种模式：read-only和read-write，虚拟出来的联合文件系统可以对任何文件进行操作，但是实际上原文件并没有被修改。这里涉及到UnionFS的一个重要的资源管理技术：写时复制（copy on write）。
 
-​		overlay文件系统分为lowerdir、upperdir、merged， 对外统一展示为merged，uperdir和lower的同名文件会被upperdir覆盖。具体层次如下
+​		overlay文件系统分为lowerdir、upperdir、merged。workdir（可选）必须和upperdir是mount在同一个文件系统下。 对外统一展示为merged，uperdir和lower的同名文件会被upperdir覆盖。具体层次如下
 
 ```bash
+#OverlayFS has a workdir option, beside two other directories lowerdir and upperdir, which needs to be an empty directory.Unfortunately the kernel documentation of overlayfs does not talk much about the purpose of this option.
+
 mount -t overlay overlay -o lowerdir=/lower,upperdir=/upper,workdir=/work /merged
-//lower dir 可以为多个目录
+
+#lower dir 可以为多个目录
+#lower 可以为只读文件，文件中内容为路径，以:号分割,docker中就是以这种方式指向了例外一个镜像，实现分层镜像。
 mount -t overlay overlay -o lowerdir=/lower1:/lower2:/lower3,upperdir=/upper,workdir=/work /merged
-//不设定upperdir那么merged目录为只读目录
+
+#不设定upperdir那么merged目录为只读目录
 mount -t overlay overlay -o lowerdir=/lower1:/lower2 /merged
+```
+查看overlay挂载文件
+```bash
+jiangwh@ubuntu:~$ mount -t overlay
+overlay on /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/e8a5ff993357df5c3c995a966d88440745a9c0b79e21f38bdb89b1531fb13a1c/rootfs type overlay (rw,relatime,lowerdir=/var/lib/rancher/k3s/agent/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/2/fs,upperdir=/var/lib/rancher/k3s/agent/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/1937/fs,workdir=/var/lib/rancher/k3s/agent/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/1937/work)
+```
+
+
+
+### images
+
+​		镜像文件：一个分层压缩文件。
+
+```bash
+# rootfs 中展示各层的sha值
+docker image inspect imagesId
+```
+
+​		每个镜像都存在一个link，用于实现分层。
+
+```bash
+# 查看镜像
+# docker 中镜像的描述信息在 
+# /var/lib/docker/image/overlay2/imagedb/metadata --> update信息、parent
+# /var/lib/docker/image/overlay2/imagedb/content --> tag(inspect的相关信息)
+docker images
 ```
 
 
@@ -298,14 +336,3 @@ links, _ := netlink.LinkList()
 ```
 
 ### 执行传入命令
-
-
-## network namespace
-
-```go
-fd, err := unix.Open("/proc/self/ns/net", unix.O_RDONLY, 0)
-unix.Mount("/proc/self/ns/net", "/var/run/gocker/net-ns/containerId", "bind", unix.MS_BIND, "")
-unix.Setns(fd, unix.CLONE_NEWNET)
-
-```
-
