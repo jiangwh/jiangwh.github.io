@@ -145,7 +145,7 @@ overlay on /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/e8a5ff993357
 
 ### images
 
-​		镜像文件：一个分层压缩文件。
+​		镜像文件：一个分层压缩文件。对外形式一般为tar包。
 
 ```bash
 # rootfs 中展示各层的sha值
