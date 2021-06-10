@@ -4,6 +4,12 @@
 
 ### Namespace
 
+```bash
+man namespaces
+```
+
+
+
 隔离资源
 
 > - IPC：用于隔离进程间通讯所需的资源（ System V IPC, POSIX message queues），PID命名空间和IPC命名空间可以组合起来用，同一个IPC名字空间内的进程可以彼此看见，允许进行交互，不同空间进程无法交互
@@ -258,6 +264,15 @@ docker images
 ```
 
 
+
+## 脚本方式
+
+```bash
+#获取rootfs
+sudo crictl pull alpine
+sudo crictl export `sudo crictl run -d alpine ` | tar  -xf-
+https://hub.fastgit.org/DrmagicE/build-container-in-shell/blob/master/build_container.his
+```
 
 
 
