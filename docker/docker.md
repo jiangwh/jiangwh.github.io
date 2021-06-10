@@ -4,6 +4,8 @@
 
 ### Namespace
 
+隔离资源
+
 ```
 setns() 函数
 通过 setns() 函数可以将当前进程加入到已有的 namespace 中。setns() 在 C 语言库中的声明如下： 
@@ -25,6 +27,8 @@ unshare() 函数 和 unshare 命令
 ```
 
 ### Cgroup
+
+限制资源使用
 
 cgroup子系统查看
 
@@ -125,6 +129,7 @@ mount -t cgroup -o none,name=cgroup-test cgroup-test cgroup-test/
 mount -t overlay overlay -o lowerdir=/lower,upperdir=/upper,workdir=/work /merged
 
 #lower dir 可以为多个目录
+#lower 可以为只读文件，文件中内容为路径，以:号分割,docker中就是以这种方式指向了例外一个镜像，实现分层镜像。
 mount -t overlay overlay -o lowerdir=/lower1:/lower2:/lower3,upperdir=/upper,workdir=/work /merged
 
 #不设定upperdir那么merged目录为只读目录
@@ -145,7 +150,16 @@ overlay on /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/e8a5ff993357
 ```bash
 # rootfs 中展示各层的sha值
 docker image inspect imagesId
+```
 
+​		每个镜像都存在一个link，用于实现分层。
+
+```bash
+# 查看镜像
+# docker 中镜像的描述信息在 
+# /var/lib/docker/image/overlay2/imagedb/metadata --> update信息、parent
+# /var/lib/docker/image/overlay2/imagedb/content --> tag(inspect的相关信息)
+docker images
 ```
 
 
