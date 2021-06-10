@@ -6,7 +6,31 @@
 
 隔离资源
 
+> - IPC：用于隔离进程间通讯所需的资源（ System V IPC, POSIX message queues），PID命名空间和IPC命名空间可以组合起来用，同一个IPC名字空间内的进程可以彼此看见，允许进行交互，不同空间进程无法交互
+> - Network：隔离网络资源。Network Namespace为进程提供了一个完全独立的网络协议栈的视图。包括网络设备接口，IPv4和IPv6协议栈，IP路由表，防火墙规则，socket等等。
+> - Mount：隔离文件系统挂载点。每个进程都存在于一个mount Namespace里面，mount Namespace为进程提供了一个文件层次视图。 
+> - PID：隔离进程的ID。linux通过命名空间管理进程号，同一个进程，在不同的命名空间进程号不同！ ...
+> - User：隔离用户和用户组的ID。 用于隔离用户
+> - UTS：隔离主机名和域名信息。用于隔离主机名
+
+涉及到Namespace的操作接口包括clone()、setns()、unshare()以及还有/proc下的部分文件。为了使用特定的Namespace，在使用这些接口的时候需要指定以下一个或多个参数：
+
+CLONE_NEWNS: 用于指定Mount Namespace
+CLONE_NEWUTS: 用于指定UTS Namespace
+CLONE_NEWIPC: 用于指定IPC Namespace
+CLONE_NEWPID: 用于指定PID Namespace
+CLONE_NEWNET: 用于指定Network Namespace
+CLONE_NEWUSER: 用于指定User Namespace
+下面简单概述一下这几个接口的用法。
+
 ```
+clone() 函数
+系统调用来创建一个独立Namespace的进程
+int clone(int (*child_func)(void *), void *child_stack, int flags, void *arg);
+它通过flags参数来控制创建进程时的特性，比如新创建的进程是否与父进程共享虚拟内存等。比如可以传入CLONE_NEWNS标志使得新创建的进程拥有独立的Mount Namespace，也可以传入多个flags使得新创建的进程拥有多种特性，比如：
+flags = CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC;
+传入这个flags那么新创建的进程将同时拥有独立的Mount Namespace、UTS Namespace和IPC Namespace。
+
 setns() 函数
 通过 setns() 函数可以将当前进程加入到已有的 namespace 中。setns() 在 C 语言库中的声明如下： 
 #define _GNU_SOURCE
@@ -17,6 +41,7 @@ int setns(int fd, int nstype);
 fd：表示要加入 namespace 的文件描述符。它是一个指向 /proc/[pid]/ns 目录中文件的文件描述符，可以通过直接打开该目录下的链接文件或者打开一个挂载了该目录下链接文件的文件得到。
 nstype：参数 nstype 让调用者可以检查 fd 指向的 namespace 类型是否符合实际要求。若把该参数设置为 0 表示不检查。
 前面我们提到：可以通过挂载的方式把 namespace 保留下来。保留 namespace 的目的是为以后把进程加入这个 namespace 做准备。
+```
 
 
 
@@ -32,14 +57,13 @@ unshare() 函数 和 unshare 命令
 
 ### Cgroup
 
-<<<<<<< HEAD
 - cgroup子系统查看
-=======
+
 限制资源使用
 
 - cgroup子系统查看
 
-```bash
+​```bash
 jiangwh@ubuntu:~$ lssubsys -a
 cpuset
 cpu,cpuacct
