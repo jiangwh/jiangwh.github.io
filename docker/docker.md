@@ -283,6 +283,7 @@ unshare --mount --uts --ipc --net --pid --fork /bin/bash
 #设置隔离系统的hostname
 hostname myns
 #重新bind以便切换root
+# bind 命令 --bind opr target，会展示使用opr目录，target原有内容不会改变，处理完成后umount
 mount --bind `pwd`/myroot `pwd`/myroot
 #重新进入隔离目录
 cd `pwd`/myroot
