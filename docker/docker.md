@@ -268,10 +268,34 @@ docker images
 ## 脚本方式
 
 ```bash
+#创建目录
+mkdir myroot
+cd myroot
+#创建oldroot以便迁移root用
+mkdir oldroot
 #获取rootfs
-sudo crictl pull alpine
-sudo crictl export `sudo crictl run -d alpine ` | tar  -xf-
-https://hub.fastgit.org/DrmagicE/build-container-in-shell/blob/master/build_container.his
+sudo docker pull alpine
+sudo docker export `sudo docker run -d alpine ` | tar  -xf-
+#屏蔽挂载事件
+mount --make-rprivate /
+#隔离挂载、用户、通信、pid、网络
+unshare --mount --uts --ipc --net --pid --fork /bin/bash
+#设置隔离系统的hostname
+hostname myns
+#重新bind以便切换root
+mount --bind `pwd`/myroot `pwd`/myroot
+#重新进入隔离目录
+cd `pwd`/myroot
+#改变root路径
+pivot_root . oldroot
+#设置当前系统的环境
+PATH=$PATH:/bin:/sbin
+#挂载当前空间的process
+mount -t proc none /proc
+#卸载非正在使用挂载点
+umount -a
+#验证逻辑
+
 ```
 
 
