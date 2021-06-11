@@ -4,14 +4,70 @@
 
 ### Namespace
 
+```bash
+man namespaces
+```
+
+
+
 隔离资源
 
+> - IPC：用于隔离进程间通讯所需的资源（ System V IPC, POSIX message queues），PID命名空间和IPC命名空间可以组合起来用，同一个IPC名字空间内的进程可以彼此看见，允许进行交互，不同空间进程无法交互
+> - Network：隔离网络资源。Network Namespace为进程提供了一个完全独立的网络协议栈的视图。包括网络设备接口，IPv4和IPv6协议栈，IP路由表，防火墙规则，socket等等。
+> - Mount：隔离文件系统挂载点。每个进程都存在于一个mount Namespace里面，mount Namespace为进程提供了一个文件层次视图。 
+> - PID：隔离进程的ID。linux通过命名空间管理进程号，同一个进程，在不同的命名空间进程号不同！ ...
+> - User：隔离用户和用户组的ID。 用于隔离用户
+> - UTS：隔离主机名和域名信息。用于隔离主机名
+```bash
+# 查看某个pid的ns信息
+ubuntu@kubelet:/proc/35678/ns$ sudo ls -al
+total 0
+dr-x--x--x 2 root root 0 Jun 10 22:36 .
+dr-xr-xr-x 9 root root 0 Jun 10 22:36 ..
+lrwxrwxrwx 1 root root 0 Jun 10 22:36 cgroup -> 'cgroup:[4026531835]'
+lrwxrwxrwx 1 root root 0 Jun 10 22:36 ipc -> 'ipc:[4026531839]'
+lrwxrwxrwx 1 root root 0 Jun 10 22:36 mnt -> 'mnt:[4026531840]'
+lrwxrwxrwx 1 root root 0 Jun 10 22:36 net -> 'net:[4026531992]'
+lrwxrwxrwx 1 root root 0 Jun 10 22:36 pid -> 'pid:[4026531836]'
+lrwxrwxrwx 1 root root 0 Jun 10 22:36 pid_for_children -> 'pid:[4026531836]'
+lrwxrwxrwx 1 root root 0 Jun 10 22:36 user -> 'user:[4026531837]'
+lrwxrwxrwx 1 root root 0 Jun 10 22:36 uts -> 'uts:[4026531838]'
+
+#查看挂载信息
+ubuntu@kubelet:/proc/35678$ cat mountinfo 
+25 30 0:23 / /sys rw,nosuid,nodev,noexec,relatime shared:7 - sysfs sysfs rw
+26 30 0:5 / /proc rw,nosuid,nodev,noexec,relatime shared:14 - proc proc rw
+27 30 0:6 / /dev rw,nosuid,noexec,relatime shared:2 - devtmpfs udev rw,size=485116k,nr_inodes=121279,mode=755
+28 27 0:24 / /dev/pts rw,nosuid,noexec,relatime shared:3 - devpts devpts rw,gid=5,mode=620,ptmxmode=000
+29 30 0:25 / /run rw,nosuid,nodev,noexec,relatime shared:5 - tmpfs tmpfs rw,size=100488k,mode=755
+30 1 252:1 / / rw,relatime shared:1 - ext4 /dev/vda1 rw
 ```
+
+涉及到Namespace的操作接口包括clone()、setns()、unshare()以及还有/proc下的部分文件。为了使用特定的Namespace，在使用这些接口的时候需要指定以下一个或多个参数：
+
+CLONE_NEWNS: 用于指定Mount Namespace
+CLONE_NEWUTS: 用于指定UTS Namespace
+CLONE_NEWIPC: 用于指定IPC Namespace
+CLONE_NEWPID: 用于指定PID Namespace
+CLONE_NEWNET: 用于指定Network Namespace
+CLONE_NEWUSER: 用于指定User Namespace
+下面简单概述一下这几个接口的用法。
+
+
+clone() 函数
+系统调用来创建一个独立Namespace的进程
+int clone(int (*child_func)(void *), void *child_stack, int flags, void *arg);
+它通过flags参数来控制创建进程时的特性，比如新创建的进程是否与父进程共享虚拟内存等。比如可以传入CLONE_NEWNS标志使得新创建的进程拥有独立的Mount Namespace，也可以传入多个flags使得新创建的进程拥有多种特性，比如：
+flags = CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC;
+传入这个flags那么新创建的进程将同时拥有独立的Mount Namespace、UTS Namespace和IPC Namespace。
+
 setns() 函数
 通过 setns() 函数可以将当前进程加入到已有的 namespace 中。setns() 在 C 语言库中的声明如下： 
+```
 #define _GNU_SOURCE
 #include <sched.h>
 int setns(int fd, int nstype);
+```
 和 clone() 函数一样，C 语言库中的 setns() 函数也是对 setns() 系统调用的封装：
 
 fd：表示要加入 namespace 的文件描述符。它是一个指向 /proc/[pid]/ns 目录中文件的文件描述符，可以通过直接打开该目录下的链接文件或者打开一个挂载了该目录下链接文件的文件得到。
@@ -19,18 +75,58 @@ nstype：参数 nstype 让调用者可以检查 fd 指向的 namespace 类型是
 前面我们提到：可以通过挂载的方式把 namespace 保留下来。保留 namespace 的目的是为以后把进程加入这个 namespace 做准备。
 
 unshare() 函数 和 unshare 命令
-通过 unshare 函数可以在原进程上进行 namespace 隔离。也就是创建并加入新的 namespace 。unshare() 在 C 语言库中的声明如下：
+通过 unshare 函数可以在原进程上进行 namespace 隔离。也就是创建并加入新的 namespace 。
 
-#define _GNU_SOURCE
-#include <sched.h>
+unshare()系统调用用于将当前进程和所在的Namespace分离，并加入到一个新的Namespace中，相对于setns()系统调用来说，unshare()不用关联之前存在的Namespace，只需要指定需要分离的Namespace就行，该调用会自动创建一个新的Namespace。
 
+unshare()的函数描述如下：
+
+int unshare(int flags);
+其中flags用于指明要分离的资源类别，它支持的flags与clone系统调用支持的flags类似，这里简要的叙述一下几种标志：
+
+CLONE_FILES: 子进程一般会共享父进程的文件描述符，如果子进程不想共享父进程的文件描述符了，可以通过这个flag来取消共享。
+CLONE_FS: 使当前进程不再与其他进程共享文件系统信息。
+CLONE_SYSVSEM: 取消与其他进程共享SYS V信号量。
+CLONE_NEWIPC: 创建新的IPC Namespace，并将该进程加入进来。
+
+Mount Namespace用来隔离文件系统的挂载点，不同Mount Namespace的进程拥有不同的挂载点，同时也拥有了不同的文件系统视图。Mount Namespace是历史上第一个支持的Namespace，它通过CLONE_NEWNS来标识的。
+
+进程在创建Mount Namespace时，会把当前的文件结构复制给新的Namespace，新的Namespace中的所有mount操作仅影响自身的文件系统。但随着引入挂载传播的特性，Mount Namespace变得并不是完全意义上的资源隔离，这种传播特性使得多Mount Namespace之间的挂载事件可以相互影响。
+
+挂载传播定义了挂载对象之间的关系，系统利用这些关系来决定挂载对象中的挂载事件对其他挂载对象的影响。其中挂载对象之间的关系描述如下：
+
+共享关系(MS_SHARED)：一个挂载对象的挂载事件会跨Namespace共享到其他挂载对象。
+从属关系(MS_SLAVE): 传播的方向是单向的，即只能从Master传播到Slave方向。
+私有关系(MS_PRIVATE): 不同Namespace的挂载事件是互不影响的(默认选项)。
+不可绑定关系(MS_UNBINDABLE): 一个不可绑定的私有挂载，与私有挂载类似，但是不能执行挂载操作。
+
+```bash
+mount --make-shared /mntS      # 将挂载点设置为共享关系属性
+mount --make-private /mntP     # 将挂载点设置为私有关系属性
+mount --make-slave /mntY       # 将挂载点设置为从属关系属性
+mount --make-unbindable /mntU  # 将挂载点设置为不可绑定属性
 ```
+
+
+
+绑定挂载的引入使得`mount`的其中一个参数不一定要是一个特殊文件，也可以是该文件系统上的一个普通文件目录。Linux中绑定挂载的用法如下
+
+```bash
+mount --bind /home/work /home/alpha
+mount -o bind /home/work /home/alpha
+```
+
+
+
+
+
+
 
 ### Cgroup
 
 限制资源使用
 
-cgroup子系统查看
+- cgroup子系统查看
 
 ```bash
 jiangwh@ubuntu:~$ lssubsys -a
@@ -47,7 +143,7 @@ pids
 rdma
 ```
 
-
+- 各个子系统说明
 
 ```
 cpu      子系统，主要限制进程的 cpu 使用率。
@@ -63,9 +159,9 @@ ns       子系统，可以使不同 cgroups 下面的进程使用不同的 name
 hugetlb  子系统.主要针对于HugeTLB系统进行限制，这是一个大页文件系统。
 ```
 
-查看cgroup的挂载点
+- 查看cgroup的挂载点
 
-```bash
+```bash 
 jiangwh@ubuntu:/sys/fs/cgroup/cpu/gocker/5b39264034e6$ mount -t cgroup
 cgroup on /sys/fs/cgroup/systemd type cgroup (rw,nosuid,nodev,noexec,relatime,xattr,name=systemd)
 cgroup on /sys/fs/cgroup/pids type cgroup (rw,nosuid,nodev,noexec,relatime,pids)
@@ -81,7 +177,8 @@ cgroup on /sys/fs/cgroup/devices type cgroup (rw,nosuid,nodev,noexec,relatime,de
 cgroup on /sys/fs/cgroup/hugetlb type cgroup (rw,nosuid,nodev,noexec,relatime,hugetlb)
 ```
 
-查看cgroup组,以下展示了test组，所有tasks中pid都收到该组的限制。
+
+- 查看cgroup组,以下展示了test组，所有tasks中pid都收到该组的限制。
 
 ```bash
 jiangwh@ubuntu:/sys/fs/cgroup/cpu/test$ ls -al
@@ -107,9 +204,10 @@ drwxr-xr-x 2 root root 0 Jun  5 13:26 5b39264034e6
 -rw-r--r-- 1 root root 0 Jun  5 13:26 tasks
 ```
 
-mount 方式处理cgroup
+- mount 方式处理cgroup
 
 > kernel是通过一个虚拟树状文件系统来配置cgroups的。我们首先需要创建并挂载一个hierarchy(cgroup树)。即先mkdir后mount
+
 
 ```bash
 mount -t cgroup -o none,name=cgroup-test cgroup-test cgroup-test/
@@ -122,6 +220,8 @@ mount -t cgroup -o none,name=cgroup-test cgroup-test cgroup-test/
 ​		UnionFS是一种为Linux，FreeBSD，NetBSD操作系统设计的文件系统服务，这个文件系统服务的功能是将其他文件系统联合起来，挂载到同一挂载点。它使用branch把不同文件系统目录和文件进行“透明”覆盖，形成一个单一一致的文件系统。这些branches有两种模式：read-only和read-write，虚拟出来的联合文件系统可以对任何文件进行操作，但是实际上原文件并没有被修改。这里涉及到UnionFS的一个重要的资源管理技术：写时复制（copy on write）。
 
 ​		overlay文件系统分为lowerdir、upperdir、merged。workdir（可选）必须和upperdir是mount在同一个文件系统下。 对外统一展示为merged，uperdir和lower的同名文件会被upperdir覆盖。具体层次如下
+
+
 
 ```bash
 #OverlayFS has a workdir option, beside two other directories lowerdir and upperdir, which needs to be an empty directory.Unfortunately the kernel documentation of overlayfs does not talk much about the purpose of this option.
@@ -136,6 +236,7 @@ mount -t overlay overlay -o lowerdir=/lower1:/lower2:/lower3,upperdir=/upper,wor
 mount -t overlay overlay -o lowerdir=/lower1:/lower2 /merged
 ```
 查看overlay挂载文件
+
 ```bash
 jiangwh@ubuntu:~$ mount -t overlay
 overlay on /run/k3s/containerd/io.containerd.runtime.v2.task/k8s.io/e8a5ff993357df5c3c995a966d88440745a9c0b79e21f38bdb89b1531fb13a1c/rootfs type overlay (rw,relatime,lowerdir=/var/lib/rancher/k3s/agent/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/2/fs,upperdir=/var/lib/rancher/k3s/agent/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/1937/fs,workdir=/var/lib/rancher/k3s/agent/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/1937/work)
@@ -164,6 +265,15 @@ docker images
 
 
 
+## 脚本方式
+
+```bash
+#获取rootfs
+sudo crictl pull alpine
+sudo crictl export `sudo crictl run -d alpine ` | tar  -xf-
+https://hub.fastgit.org/DrmagicE/build-container-in-shell/blob/master/build_container.his
+```
+
 
 
 ## 动手造docker
@@ -171,8 +281,8 @@ docker images
 ### 设置网桥
 net bridge
 
-```go
-	//利用go创建一个网桥
+``` go
+//利用go创建一个网桥
 	linkAttrs := netlink.NewLinkAttrs()
 	linkAttrs.Name = "bridge0"
 	gBridge := &netlink.Bridge{LinkAttrs: linkAttrs}
@@ -185,11 +295,13 @@ net bridge
 	netlink.LinkSetUp(gBridge)
 ```
 
+
 ### 镜像下载
 此处忽略
 
 ### 镜像运行文件准备
  挂载文件
+
 ```go
 //overlay方式 挂载文件 
 //func Mount(source string, target string, fstype string, flags uintptr, data string) (err error)
@@ -221,8 +333,6 @@ gockerBridge, _ := netlink.LinkByName("gocker0")
 netlink.LinkSetMaster(veth0Struct, gockerBridge)
 ```
 
-
-
 ### 设置网络namespace
 
 ```go
@@ -240,6 +350,7 @@ unix.Setns(fd, unix.CLONE_NEWNET)
 
 ### 容器内部网络
 设置网络Veth1
+
 ```go
 fd, err = unix.Open("挂载net目录", unix.O_RDONLY, 0)
 //设置网卡名称
@@ -328,4 +439,3 @@ links, _ := netlink.LinkList()
 ```
 
 ### 执行传入命令
-
