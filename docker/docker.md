@@ -212,6 +212,10 @@ drwxr-xr-x 2 root root 0 Jun  5 13:26 5b39264034e6
 ```bash
 mount -t cgroup -o none,name=cgroup-test cgroup-test cgroup-test/
 ```
+通用的方式
+```bash
+mount -t cgroup -o subsystems name /cgroup/name
+```
 
 
 
