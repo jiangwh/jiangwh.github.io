@@ -8,8 +8,6 @@
 man namespaces
 ```
 
-
-
 隔离资源
 
 > - IPC：用于隔离进程间通讯所需的资源（ System V IPC, POSIX message queues），PID命名空间和IPC命名空间可以组合起来用，同一个IPC名字空间内的进程可以彼此看见，允许进行交互，不同空间进程无法交互
@@ -217,7 +215,74 @@ mount -t cgroup -o none,name=cgroup-test cgroup-test cgroup-test/
 mount -t cgroup -o subsystems name /cgroup/name
 ```
 
+cgorup 验证
+```bash
+# mem验证
+cd /sys/fs/cgroup/memory
+mkdir mem_test
+echo 10M > memory.limit_in_bytes 
+# 不使用swap空间
+swapoff -a
+echo 0 > memory.swappiness
+# 将当前shell进程写入任务，该shell启动的程序也收到控制
+echo $$ > tasks
+# 正常执行
+stress --vm 1 --vm-bytes 1M  --timeout 1200s
+# 正常执行
+stress --vm 1 --vm-bytes 9M  --timeout 1200s 
+# 失败
+stress --vm 1 --vm-bytes 10M  --timeout 1200s
+# 确认失败原因
+journalctl -f
+```
 
+提示
+>stress: info: [69430] dispatching hogs: 0 cpu, 0 io, 1 vm, 0 hdd
+>stress: FAIL: [69430] (415) <-- worker 69431 got signal 9
+>stress: WARN: [69430] (417) now reaping child worker processes
+>stress: FAIL: [69430] (451) failed run completed in 0s
+日志
+> -- Logs begin at Sun 2021-05-30 12:29:02 CST. --
+> Jun 13 14:21:19 kubelet kernel: Memory cgroup stats for /mem_test:
+> Jun 13 14:21:19 kubelet kernel: anon 9842688
+>                                 file 0
+>                                 kernel_stack 0
+>                                 slab 409600
+>                                 sock 0
+>                                 shmem 0
+>                                 file_mapped 0
+>                                 file_dirty 0
+>                                 file_writeback 0
+>                                 anon_thp 0
+>                                 inactive_anon 0
+>                                 active_anon 9732096
+>                                 inactive_file 0
+>                                 active_file 0
+>                                 unevictable 0
+>                                 slab_reclaimable 139264
+>                                 slab_unreclaimable 270336
+>                                 pgfault 12177
+>                                 pgmajfault 0
+>                                 workingset_refault 165
+>                                 workingset_activate 0
+>                                 workingset_nodereclaim 0
+>                                 pgrefill 1454
+>                                 pgscan 1438
+>                                 pgsteal 37
+>                                 pgactivate 1419
+>                                 pgdeactivate 1454
+>                                 pglazyfree 0
+>                                 pglazyfreed 0
+>                                 thp_fault_alloc 0
+>                                 thp_collapse_alloc 0
+> Jun 13 14:21:19 kubelet kernel: Tasks state (memory values in pages):
+> Jun 13 14:21:19 kubelet kernel: [  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name
+> Jun 13 14:21:19 kubelet kernel: [  69258]     0 69258     2240      998    57344        0             0 bash
+> Jun 13 14:21:19 kubelet kernel: [  69430]     0 69430      964      246    49152        0             0 stress
+> Jun 13 14:21:19 kubelet kernel: [  69431]     0 69431     3525     2378    69632        0             0 stress
+> Jun 13 14:21:19 kubelet kernel: oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/mem_test,task_memcg=/mem_test,task=stress,pid=69431,uid=0
+> Jun 13 14:21:19 kubelet kernel: Memory cgroup out of memory: Killed process 69431 (stress) total-vm:14100kB, anon-rss:9304kB, file-rss:208kB, shmem-rss:0kB, UID:0 pgtables:68kB oom_score_adj:0
+> Jun 13 14:21:19 kubelet kernel: oom_reaper: reaped process 69431 (stress), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
 
 ### UnionFS
 
