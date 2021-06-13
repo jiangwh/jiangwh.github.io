@@ -241,48 +241,49 @@ journalctl -f
 >stress: FAIL: [69430] (415) <-- worker 69431 got signal 9
 >stress: WARN: [69430] (417) now reaping child worker processes
 >stress: FAIL: [69430] (451) failed run completed in 0s
+
 日志
-> -- Logs begin at Sun 2021-05-30 12:29:02 CST. --
-> Jun 13 14:21:19 kubelet kernel: Memory cgroup stats for /mem_test:
-> Jun 13 14:21:19 kubelet kernel: anon 9842688
->                                 file 0
->                                 kernel_stack 0
->                                 slab 409600
->                                 sock 0
->                                 shmem 0
->                                 file_mapped 0
->                                 file_dirty 0
->                                 file_writeback 0
->                                 anon_thp 0
->                                 inactive_anon 0
->                                 active_anon 9732096
->                                 inactive_file 0
->                                 active_file 0
->                                 unevictable 0
->                                 slab_reclaimable 139264
->                                 slab_unreclaimable 270336
->                                 pgfault 12177
->                                 pgmajfault 0
->                                 workingset_refault 165
->                                 workingset_activate 0
->                                 workingset_nodereclaim 0
->                                 pgrefill 1454
->                                 pgscan 1438
->                                 pgsteal 37
->                                 pgactivate 1419
->                                 pgdeactivate 1454
->                                 pglazyfree 0
->                                 pglazyfreed 0
->                                 thp_fault_alloc 0
->                                 thp_collapse_alloc 0
-> Jun 13 14:21:19 kubelet kernel: Tasks state (memory values in pages):
-> Jun 13 14:21:19 kubelet kernel: [  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name
-> Jun 13 14:21:19 kubelet kernel: [  69258]     0 69258     2240      998    57344        0             0 bash
-> Jun 13 14:21:19 kubelet kernel: [  69430]     0 69430      964      246    49152        0             0 stress
-> Jun 13 14:21:19 kubelet kernel: [  69431]     0 69431     3525     2378    69632        0             0 stress
-> Jun 13 14:21:19 kubelet kernel: oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/mem_test,task_memcg=/mem_test,task=stress,pid=69431,uid=0
-> Jun 13 14:21:19 kubelet kernel: Memory cgroup out of memory: Killed process 69431 (stress) total-vm:14100kB, anon-rss:9304kB, file-rss:208kB, shmem-rss:0kB, UID:0 pgtables:68kB oom_score_adj:0
-> Jun 13 14:21:19 kubelet kernel: oom_reaper: reaped process 69431 (stress), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+>-- Logs begin at Sun 2021-05-30 12:29:02 CST. --
+>Jun 13 14:21:19 kubelet kernel: Memory cgroup stats for /mem_test:
+>Jun 13 14:21:19 kubelet kernel: anon 9842688
+>                            file 0
+>                            kernel_stack 0
+>                            slab 409600
+>                            sock 0
+>                            shmem 0
+>                            file_mapped 0
+>                            file_dirty 0
+>                            file_writeback 0
+>                            anon_thp 0
+>                            inactive_anon 0
+>                            active_anon 9732096
+>                            inactive_file 0
+>                            active_file 0
+>                            unevictable 0
+>                            slab_reclaimable 139264
+>                            slab_unreclaimable 270336
+>                            pgfault 12177
+>                            pgmajfault 0
+>                            workingset_refault 165
+>                            workingset_activate 0
+>                            workingset_nodereclaim 0
+>                            pgrefill 1454
+>                            pgscan 1438
+>                            pgsteal 37
+>                            pgactivate 1419
+>                            pgdeactivate 1454
+>                            pglazyfree 0
+>                            pglazyfreed 0
+>                            thp_fault_alloc 0
+>                            thp_collapse_alloc 0
+>Jun 13 14:21:19 kubelet kernel: Tasks state (memory values in pages):
+>Jun 13 14:21:19 kubelet kernel: [  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name
+>Jun 13 14:21:19 kubelet kernel: [  69258]     0 69258     2240      998    57344        0             0 bash
+>Jun 13 14:21:19 kubelet kernel: [  69430]     0 69430      964      246    49152        0             0 stress
+>Jun 13 14:21:19 kubelet kernel: [  69431]     0 69431     3525     2378    69632        0             0 stress
+>Jun 13 14:21:19 kubelet kernel: oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),cpuset=/,mems_allowed=0,oom_memcg=/mem_test,task_memcg=/mem_test,task=stress,pid=69431,uid=0
+>Jun 13 14:21:19 kubelet kernel: Memory cgroup out of memory: Killed process 69431 (stress) total-vm:14100kB, anon-rss:9304kB, file-rss:208kB, shmem-rss:0kB, UID:0 pgtables:68kB oom_score_adj:0
+>Jun 13 14:21:19 kubelet kernel: oom_reaper: reaped process 69431 (stress), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
 
 ### UnionFS
 
