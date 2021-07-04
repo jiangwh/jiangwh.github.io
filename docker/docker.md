@@ -296,6 +296,7 @@ journalctl -f
 ```bash
 #OverlayFS has a workdir option, beside two other directories lowerdir and upperdir, which needs to be an empty directory.Unfortunately the kernel documentation of overlayfs does not talk much about the purpose of this option.
 
+#mount -t overlay overlay  -o lowerdir=lower/,upperdir=upper/,workdir=work/ merge
 mount -t overlay overlay -o lowerdir=/lower,upperdir=/upper,workdir=/work /merged
 
 #lower dir 可以为多个目录
@@ -534,3 +535,4 @@ links, _ := netlink.LinkList()
 ```
 
 ### 执行传入命令
+
