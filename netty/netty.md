@@ -1,4 +1,7 @@
-# netty的零复制处理
+# netty
+关于netty一些理解
+
+## netty的零复制处理
 
 ### zero-copy
 
@@ -12,7 +15,7 @@ linux中支持zero-copy的函数：mmap、sendfile、splice。
 
 ```sendfile With DMA Scatter/Gather Copy```
 
-## netty中的zero-copy
+### netty中的zero-copy
 
 下面是netty中读取数据的代码与正常的应用程序并无本质区别。
 
@@ -82,5 +85,73 @@ netty中零复制的体现，就是netty中bytebuf，bytebuf减少了应用层�
         }
         return WRITE_STATUS_SNDBUF_FULL;
     }
+```
+
+## netty直接内存管理
+
+netty直接内存是框架自身管理的，需要手动的进行alloc以及release。
+
+### 申请直接内存
+
+```java
+//增加引用计数
+//内存track
+//申请直接内存
+ @Override
+    protected ByteBuf newDirectBuffer(int initialCapacity, int maxCapacity) {
+        PoolThreadCache cache = threadCache.get();
+        PoolArena<ByteBuffer> directArena = cache.directArena;
+
+        final ByteBuf buf;
+        if (directArena != null) {
+            buf = directArena.allocate(cache, initialCapacity, maxCapacity);
+        } else {
+            buf = PlatformDependent.hasUnsafe() ?
+                    UnsafeByteBufUtil.newUnsafeDirectByteBuf(this, initialCapacity, maxCapacity) :
+                    new UnpooledDirectByteBuf(this, initialCapacity, maxCapacity);
+        }
+
+        return toLeakAwareBuffer(buf);
+    }
+
+```
+
+### 释放内存
+
+```java
+//减少引用
+//free内存
+private boolean release0(int decrement) {
+        int rawCnt = nonVolatileRawCnt(), realCnt = toLiveRealCnt(rawCnt, decrement);
+        if (decrement == realCnt) {
+            if (refCntUpdater.compareAndSet(this, rawCnt, 1)) {
+                deallocate();
+                return true;
+            }
+            return retryRelease0(decrement);
+        }
+        return releaseNonFinal0(decrement, rawCnt, realCnt);
+    }
+```
+
+
+
+### 代码技巧
+
+```java
+public boolean close(T trackedObject) {
+            // Ensure that the object that was tracked is the same as the one that was passed to close(...).
+            assert trackedHash == System.identityHashCode(trackedObject);
+
+            try {
+                return close();
+            } finally {
+                // This method will do `synchronized(trackedObject)` and we should be sure this will not cause deadlock.
+                // It should not, because somewhere up the callstack should be a (successful) `trackedObject.release`,
+                // therefore it is unreasonable that anyone else, anywhere, is holding a lock on the trackedObject.
+                // (Unreasonable but possible, unfortunately.)
+                reachabilityFence0(trackedObject);
+            }
+        }
 ```
 
